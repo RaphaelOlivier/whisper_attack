@@ -1,0 +1,102 @@
+# General information
+seed: 1002
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+root: !PLACEHOLDER
+tokenizers_folder: !ref <root>/tokenizers
+
+# Hyparameters below are dependant on the attack and model used 
+# and should be changed at the user's discretion
+# -------------------------------------------------------------
+# Attack information
+max_decr: 1
+eps: 0.04
+nb_iter: 1000
+const: 10
+lr: 0.005
+target_sentence:
+   - LET ME SEE HOW CAN I BEGIN
+   - NOW GO I CAN'T KEEP MY EYES OPEN
+   - SO YOU ARE NOT A GRAVE DIGGER THEN
+   - HE HAD HARDLY THE STRENGTH TO STAMMER
+   - WHAT CAN THIS MEAN SHE SAID TO HERSELF
+   - NOT YEARS FOR SHE'S ONLY FIVE AND TWENTY
+   - WHAT DOES NOT A MAN UNDERGO FOR THE SAKE OF A CURE
+   - IT IS EASY ENOUGH WITH THE CHILD YOU WILL CARRY HER OUT
+   - POOR LITTLE MAN SAID THE LADY YOU MISS YOUR MOTHER DON'T YOU
+   - AT LAST THE LITTLE LIEUTENANT COULD BEAR THE ANXIETY NO LONGER
+   - TAKE THE MEAT OF ONE LARGE CRAB SCRAPING OUT ALL OF THE FAT FROM THE SHELL
+   - TIS A STRANGE CHANGE AND I AM VERY SORRY FOR IT BUT I'LL SWEAR I KNOW NOT HOW TO HELP IT
+   - THE BOURGEOIS DID NOT CARE MUCH ABOUT BEING BURIED IN THE VAUGIRARD IT HINTED AT POVERTY PERE LACHAISE IF YOU PLEASE
+train_mode_for_backward: False
+attack_class: !name:robust_speech.adversarial.attacks.cw.ASRCarliniWagnerAttack
+   targeted: True
+   decrease_factor_eps: 0.5
+   eps: !ref <eps>
+   global_max_length: 562480
+   initial_rescale: 1.0
+   learning_rate: !ref <lr>
+   optimizer: !name:torch.optim.SGD
+   max_iter: !ref <nb_iter>
+   const: !ref <const>
+   train_mode_for_backward: !ref <train_mode_for_backward>
+   max_num_decrease_eps: !ref <max_decr>
+attack_name: cw
+save_audio: True
+load_audio: True
+
+# Model information
+model_label: tiny
+model_name: !ref whisper-<model_label>
+target_brain_class: !name:sb_whisper_binding.WhisperASR
+target_brain_hparams_file: !ref model_configs/<model_label>.yaml
+source_model_name: !ref <model_name>
+source_brain_class: !ref <target_brain_class>
+source_brain_hparams_file: !ref model_configs/<model_label>.yaml
+
+# Tokenizer information (compatible with target and source)
+tokenizer_name: multilingual
+tokenizer_builder: !name:whisper.tokenizer.build_tokenizer
+
+   # -------------------------------------------------------------
+
+output_folder: !ref <root>/attacks/<attack_name>/<source_model_name>/<seed>
+wer_file: !ref <output_folder>/wer.txt
+save_folder: !ref <output_folder>
+log: !ref <output_folder>/log.txt
+save_audio_path: !ref <output_folder>/save
+
+dataset_prepare_fct: !name:robust_speech.data.librispeech.prepare_librispeech
+dataio_prepare_fct: !name:robust_speech.data.dataio.dataio_prepare
+
+# Data files
+data_folder: !ref <root>/data/LibriSpeech # e.g, /localscratch/LibriSpeech
+csv_folder: !ref <data_folder>/csv # e.g, /localscratch/LibriSpeech
+# If RIRS_NOISES dir exists in /localscratch/xxx_corpus/RIRS_NOISES
+# then data_folder_rirs should be /localscratch/xxx_corpus
+# otherwise the dataset will automatically be downloaded
+test_splits: ["test-clean"]
+skip_prep: True
+ckpt_interval_minutes: 15 # save checkpoint every N min
+data_csv_name: test-clean
+test_csv:
+   - !ref <data_folder>/csv/<data_csv_name>.csv
+batch_size: 1 # This works for 2x GPUs with 32GB
+avoid_if_longer_than: 14.0
+sorting: random
+
+# Feature parameters
+sample_rate: 16000
+n_fft: 400
+n_mels: 80
+
+# Decoding parameters (only for text_pipeline)
+blank_index: 0
+bos_index: 1
+eos_index: 2
+
+test_dataloader_opts:
+    batch_size: 1
+
+logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <log>
+    
