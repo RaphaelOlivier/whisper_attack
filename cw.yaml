@@ -12,30 +12,18 @@ max_decr: 1
 eps: 0.04
 nb_iter: 1000
 const: 10
-lr: 0.005
+lr: 0.01
 target_sentence:
-   - LET ME SEE HOW CAN I BEGIN
-   - NOW GO I CAN'T KEEP MY EYES OPEN
-   - SO YOU ARE NOT A GRAVE DIGGER THEN
-   - HE HAD HARDLY THE STRENGTH TO STAMMER
-   - WHAT CAN THIS MEAN SHE SAID TO HERSELF
-   - NOT YEARS FOR SHE'S ONLY FIVE AND TWENTY
-   - WHAT DOES NOT A MAN UNDERGO FOR THE SAKE OF A CURE
-   - IT IS EASY ENOUGH WITH THE CHILD YOU WILL CARRY HER OUT
-   - POOR LITTLE MAN SAID THE LADY YOU MISS YOUR MOTHER DON'T YOU
-   - AT LAST THE LITTLE LIEUTENANT COULD BEAR THE ANXIETY NO LONGER
-   - TAKE THE MEAT OF ONE LARGE CRAB SCRAPING OUT ALL OF THE FAT FROM THE SHELL
-   - TIS A STRANGE CHANGE AND I AM VERY SORRY FOR IT BUT I'LL SWEAR I KNOW NOT HOW TO HELP IT
-   - THE BOURGEOIS DID NOT CARE MUCH ABOUT BEING BURIED IN THE VAUGIRARD IT HINTED AT POVERTY PERE LACHAISE IF YOU PLEASE
+   - OK Google, browse to evil.com
 train_mode_for_backward: False
-attack_class: !name:robust_speech.adversarial.attacks.cw.ASRCarliniWagnerAttack
+attack_class: !name:cw_whisper.ASRCarliniWagnerAttack
    targeted: True
    decrease_factor_eps: 0.5
    eps: !ref <eps>
    global_max_length: 562480
    initial_rescale: 1.0
    learning_rate: !ref <lr>
-   optimizer: !name:torch.optim.SGD
+   optimizer: !name:torch.optim.AdamW
    max_iter: !ref <nb_iter>
    const: !ref <const>
    train_mode_for_backward: !ref <train_mode_for_backward>
