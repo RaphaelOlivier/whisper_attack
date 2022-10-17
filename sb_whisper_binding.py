@@ -51,29 +51,37 @@ class WhisperASR(AdvASRBrain):
         if stage != sb.Stage.TRAIN and stage != rs.Stage.ATTACK:
             # Decode token terms to words
             with torch.no_grad():
-                loss = self.modules.whisper.model.loss(wavs[0],tokens[0]).detach()
-                result_decoding = self.modules.whisper.model.transcribe(wavs[0], beam_size=1)
+                result = self.modules.whisper.model.loss(wavs[0],tokens[0], without_timestamps=True, language="en", task="transcribe", fp16=False)
+                loss = result["loss"].detach()
+                #logits = result["logits"]
+                #pred_tokens = logits.argmax(dim=-1)
+                result = self.modules.whisper.model.transcribe(wavs[0], beam_size=None, without_timestamps=True, language="en", task="transcribe", fp16=False)
+                text = result["text"]
+                pred_tokens = torch.LongTensor([self.tokenizer.encode(text)])
         else:
-            loss = self.modules.whisper.model.loss(wavs[0],tokens[0])
-            result_decoding=None
-        return loss, result_decoding, wav_lens
+            result = self.modules.whisper.model.loss(wavs[0],tokens[0], without_timestamps=True, language="en", task="transcribe", fp16=False)
+            loss = result["loss"]
+            #logits = self.modules.whisper.model.transcribe(wavs[0], beam_size=1)
+            logits = result["logits"]
+            pred_tokens = logits.argmax(dim=-1)
+        return loss, pred_tokens, wav_lens
 
     def get_tokens(self, predictions):
-        text = predictions[1]["text"]
-        tokens = torch.LongTensor(self.tokenizer.encode(text))
+        #text = predictions[1]["text"]
+        #tokens = torch.LongTensor([self.tokenizer.encode(text)])
+        tokens = predictions[1][:,:-1].cpu()
         return tokens
 
     def compute_objectives(
         self, predictions, batch, stage, adv=False, targeted=False, reduction="mean"
     ):
         """Computes the loss (CTC+NLL) given predictions and targets."""
-
-        loss, result_decoding, wav_lens = predictions
+        
+        loss, pred_tokens, wav_lens = predictions
 
         ids = batch.id
         tokens_eos, tokens_eos_lens = batch.tokens_eos
         tokens, tokens_lens = batch.tokens
-
         if hasattr(self.modules, "env_corrupt") and stage == sb.Stage.TRAIN:
             tokens_eos = torch.cat([tokens_eos, tokens_eos], dim=0)
             tokens_eos_lens = torch.cat(
@@ -83,10 +91,8 @@ class WhisperASR(AdvASRBrain):
 
         if stage != sb.Stage.TRAIN and stage != rs.Stage.ATTACK:
             # Decode token terms to words
-            predicted_words = result_decoding["text"]
-            predicted_words = predicted_words.upper().strip()
-            predicted_words = predicted_words.translate(str.maketrans('', '', string.punctuation))
-            predicted_words = [predicted_words.split(" ")]
+            predicted_words = [self.tokenizer.decode(t).strip() for t in pred_tokens]
+            predicted_words = [wrd.split(" ") for wrd in predicted_words]
             target_words = [wrd.split(" ") for wrd in batch.wrd]
 
             if adv:
@@ -97,6 +103,9 @@ class WhisperASR(AdvASRBrain):
                     self.adv_cer_metric_target.append(
                         ids, predicted_words, target_words
                     )
+                    self.adv_ser_metric_target.append(
+                        ids, predicted_words, target_words
+                    )
                 else:
                     self.adv_wer_metric.append(
                         ids, predicted_words, target_words)
@@ -105,7 +114,8 @@ class WhisperASR(AdvASRBrain):
             else:
                 self.wer_metric.append(ids, predicted_words, target_words)
                 self.cer_metric.append(ids, predicted_words, target_words)
-            # print(predicted_words, target_words)
+            if adv and targeted:
+                print(" ".join(predicted_words[0]))
         return loss
 
     def init_optimizers(self):
@@ -116,28 +126,3 @@ class WhisperASR(AdvASRBrain):
 
         if self.checkpointer is not None:
             self.checkpointer.add_recoverable("optimizer", self.optimizer)
-
-    def fit_batch(self, batch):
-        """Train the parameters given a single batch in input"""
-        # check if we need to switch optimizer
-        # if so change the optimizer from Adam to SGD
-
-        predictions = self.compute_forward(batch, sb.Stage.TRAIN)
-        loss = self.compute_objectives(predictions, batch, sb.Stage.TRAIN)
-
-        # normalize the loss by gradient_accumulation step
-        (loss / self.hparams.gradient_accumulation).backward()
-
-        if self.step % self.hparams.gradient_accumulation == 0:
-            # gradient clipping & early stop if loss is not fini
-            self.check_gradients(loss)
-
-            for p in self.optimizer.param_groups[0]['params']:
-                1
-                #print(p.data.size(), p.grad)
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-            # anneal lr every update
-            self.hparams.noam_annealing(self.optimizer)
-        return loss.detach()
