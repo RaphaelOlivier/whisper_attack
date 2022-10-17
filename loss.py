@@ -29,7 +29,7 @@ class LossResult:
     compression_ratio: float = np.nan
 
 class LossTask(DecodingTask):
-    def _decoder_forward(self, audio_features: Tensor, tokens: Tensor):
+    def _decoder_forward(self, audio_features: Tensor, tokens: Tensor, init_tokens_length: int):
         self.inference.initial_token_length = tokens.shape[-1]
         assert audio_features.shape[0] == tokens.shape[0]
         n_batch = tokens.shape[0]
@@ -37,18 +37,22 @@ class LossTask(DecodingTask):
         no_speech_probs = [np.nan] * n_batch
         loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
         logits = self.inference.logits(tokens[:,:-1], audio_features)
-        # print((tokens[:,3:] == logits.argmax(-1)[:,2:]).sum().item(),"/",len(tokens[0,3:]))
-        loss = loss_fct(logits[:,2:].transpose(1,2),tokens[:,3:]).mean(dim=1)
+        loss = loss_fct(logits[:,(init_tokens_length-1):].transpose(1,2),tokens[:,init_tokens_length:]).mean(dim=1)
+        
+        corrective_first_word_loss = loss_fct(logits[:,(init_tokens_length-1)],tokens[:,init_tokens_length]) #- loss_fct(logits[:,(init_tokens_length-1)],first_word_pred)
+        corrective_first_word_loss = corrective_first_word_loss/tokens.size(1)
+        loss=loss+corrective_first_word_loss
+
         self.inference.cleanup_caching()
-        return loss, logits, no_speech_probs, sum_logprobs
+        return loss, logits[:,(init_tokens_length-1):], no_speech_probs, sum_logprobs
 
     def run(self, mel: Tensor, label: Union[str, torch.Tensor]) -> List[LossResult]:
         self.decoder.reset()
         tokenizer: Tokenizer = self.tokenizer
         n_audio: int = mel.shape[0]
-
         audio_features: Tensor = self._get_audio_features(mel)  # encoder forward pass
         init_tokens: Tensor = torch.tensor([self.initial_tokens]).repeat(n_audio, 1).to(audio_features.device)
+        init_tokens_length = init_tokens.size(-1)
         if isinstance(label,str):
             label = torch.tensor([tokenizer.encode(label)])
             
@@ -63,7 +67,7 @@ class LossTask(DecodingTask):
         tokens = tokens.repeat_interleave(self.n_group, dim=0).to(audio_features.device)
 
         # call the main sampling loop
-        loss, logits, no_speech_probs, sum_logprobs = self._decoder_forward(audio_features, tokens)
+        loss, logits, no_speech_probs, sum_logprobs = self._decoder_forward(audio_features, tokens, init_tokens_length)
         # reshape the tensors to have (n_audio, n_group) as the first two dimensions
         audio_features = audio_features[:: self.n_group]
         no_speech_probs = no_speech_probs[:: self.n_group]
@@ -366,4 +370,7 @@ def get_loss_single_segment(
         loss = loss.mean(dim=1)
     if loss.ndim==0:
         loss = loss.unsqueeze(0)
-    return loss
+    logits = result.logits 
+    if logits.ndim == 2:
+        logits=logits.unsqueeze(0)
+    return dict(loss=loss,logits=logits)
