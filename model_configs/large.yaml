@@ -64,3 +64,5 @@ cer_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
    split_tokens: True
 ser_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
    merge_tokens: True
+fp16: false
+language: en
