@@ -29,6 +29,19 @@ class LossResult:
     compression_ratio: float = np.nan
 
 class LossTask(DecodingTask):
+
+    def __init__(self,model,confidence, correct_first_word,*args, **kwargs):
+        super(LossTask,self).__init__(model,*args,**kwargs)
+        self.correct_first_word=correct_first_word
+        self.confidence=confidence
+
+    def _loss_from_logits(self,logits,tokens, loss_fct):
+        loss = loss_fct(logits.transpose(1,2),tokens).mean()
+        if self.correct_first_word:
+            corrective_first_word_loss = loss_fct(logits[:,0],tokens[:,0])
+            loss=loss + corrective_first_word_loss/logits.size(1)
+        return loss
+
     def _decoder_forward(self, audio_features: Tensor, tokens: Tensor, init_tokens_length: int):
         self.inference.initial_token_length = tokens.shape[-1]
         assert audio_features.shape[0] == tokens.shape[0]
@@ -37,13 +50,12 @@ class LossTask(DecodingTask):
         no_speech_probs = [np.nan] * n_batch
         loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
         logits = self.inference.logits(tokens[:,:-1], audio_features)
-        loss = loss_fct(logits[:,(init_tokens_length-1):].transpose(1,2),tokens[:,init_tokens_length:]).mean(dim=1)
-        
-        corrective_first_word_loss = loss_fct(logits[:,(init_tokens_length-1)],tokens[:,init_tokens_length]) #- loss_fct(logits[:,(init_tokens_length-1)],first_word_pred)
-        corrective_first_word_loss = corrective_first_word_loss/tokens.size(1)
-        loss=loss+corrective_first_word_loss
-
+        loss = self._loss_from_logits(logits[:,(init_tokens_length-1):], tokens[:,init_tokens_length:], loss_fct)
         self.inference.cleanup_caching()
+        if self.confidence>0:
+            mask = torch.nn.functional.one_hot(tokens, num_classes=logits.size(-1)) 
+            mask[:,:init_tokens_length]=0
+            logits = logits - self.confidence*mask[:,1:]
         return loss, logits[:,(init_tokens_length-1):], no_speech_probs, sum_logprobs
 
     def run(self, mel: Tensor, label: Union[str, torch.Tensor]) -> List[LossResult]:
@@ -104,7 +116,7 @@ class LossTask(DecodingTask):
         ]
 
 
-def get_loss_from_mel(model: "Whisper", mel: Tensor, label: Union[str, torch.Tensor], options: DecodingOptions = DecodingOptions()) -> Union[LossResult, List[LossResult]]:
+def get_loss_from_mel(model: "Whisper", mel: Tensor, label: Union[str, torch.Tensor], confidence, correct_first_word,  options: DecodingOptions = DecodingOptions()) -> Union[LossResult, List[LossResult]]:
     """
     Performs decoding of 30-second audio segment(s), provided as Mel spectrogram(s).
     Parameters
@@ -124,7 +136,7 @@ def get_loss_from_mel(model: "Whisper", mel: Tensor, label: Union[str, torch.Ten
     if single:
         mel = mel.unsqueeze(0)
 
-    result = LossTask(model, options).run(mel,label)
+    result = LossTask(model, confidence, correct_first_word, options).run(mel,label)
     if single:
         result = result[0]
 
@@ -323,7 +335,9 @@ def get_loss_single_segment(
     logprob_threshold: Optional[float] = -1.0,
     no_speech_threshold: Optional[float] = 0.6,
     condition_on_previous_text: bool = True,
-    **decode_options,
+    confidence=0,
+    correct_first_word=False,
+    **options,
 ):
     """
     Transcribe an audio file using Whisper
@@ -350,21 +364,26 @@ def get_loss_single_segment(
         if True, the previous output of the model is provided as a prompt for the next window;
         disabling may make the text inconsistent across windows, but the model becomes less prone to
         getting stuck in a failure loop, such as repetition looping or timestamps going out of sync.
-    decode_options: dict
+    options: dict
         Keyword arguments to construct `DecodingOptions` instances
     Returns
     -------
     A dictionary containing the resulting text ("text") and segment-level details ("segments"), and
-    the spoken language ("language"), which is detected when `decode_options["language"]` is None.
+    the spoken language ("language"), which is detected when `options["language"]` is None.
     """
-    dtype = torch.float16 if decode_options.get("fp16", True) else torch.float32
+    dtype = torch.float16 if options.get("fp16", True) else torch.float32
     audio = audio.to(model.device)
     mel = log_mel_spectrogram(audio)
     mel = pad_or_trim(mel,N_FRAMES)
-    decode_options["language"] = "en"
-    language = decode_options["language"]
-    task = decode_options.get("task", "transcribe")
-    result: LossResult = get_loss_from_mel(model, mel, label, DecodingOptions(**decode_options))
+    options["language"] = "en"
+    language = options["language"]
+    task = options.get("task", "transcribe")
+    result: LossResult = get_loss_from_mel(
+        model, mel, label, 
+        confidence, 
+        correct_first_word, 
+        DecodingOptions(**options)
+    )
     loss = result.loss
     if loss.nelement() >1:
         loss = loss.mean(dim=1)

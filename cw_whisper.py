@@ -68,6 +68,8 @@ class ASRCarliniWagnerAttack(ImperceptibleASRAttack):
         clip_min: Optional[float] = None,
         clip_max: Optional[float] = None,
         const: float = 1.0,
+        confidence: float = 0.0,
+        correct_first_word: bool = False
     ):
         super(ASRCarliniWagnerAttack, self).__init__(
             asr_brain,
@@ -87,6 +89,10 @@ class ASRCarliniWagnerAttack(ImperceptibleASRAttack):
             clip_max=clip_max,
         )
         self.reg_const = 1./const if const is not None else 0.
+        self.confidence=confidence
+        self.correct_first_word=correct_first_word
+        self.asr_brain.hparams.confidence = self.confidence
+        self.asr_brain.hparams.correct_first_word = self.correct_first_word
 
     def _forward_1st_stage(
         self,
