@@ -1,8 +1,8 @@
 #! /bin/bash
 source activate sp3
-NBITER=2000
-SEED=1001
-LOAD=False
+NBITER=4000
+SEED=1002
+LOAD=True
 NAME=cw
 EPS=0.1
 CST=100
