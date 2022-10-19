@@ -36,7 +36,7 @@ class LossTask(DecodingTask):
         self.confidence=confidence
 
     def _loss_from_logits(self,logits,tokens, loss_fct):
-        loss = loss_fct(logits.transpose(1,2),tokens).mean()
+        loss = loss_fct(logits.transpose(1,2),tokens).mean(dim=1)
         if self.correct_first_word:
             corrective_first_word_loss = loss_fct(logits[:,0],tokens[:,0])
             loss=loss + corrective_first_word_loss/logits.size(1)
@@ -101,7 +101,6 @@ class LossTask(DecodingTask):
 
         sum_logprobs: List[float] = [lp[i] for i, lp in zip(selected, sum_logprobs)]
         avg_logprobs: List[float] = [lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
-
         fields = (texts, languages, tokens, audio_features, logits, loss)
         return [
             LossResult(
