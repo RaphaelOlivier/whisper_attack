@@ -33,7 +33,6 @@ def compute_forward_lang(whisper_asr_brain, batch, stage):
     language_tokens, language_probs, logits = detect_language_with_gradients(
         whisper_asr_brain.modules.whisper.model,mel
     )
-    print(language_probs["en"], language_probs["sd"])
     return language_tokens, language_probs, logits
 
 def compute_objectives_lang(
