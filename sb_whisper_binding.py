@@ -40,7 +40,7 @@ class WhisperASR(AdvASRBrain):
             "without_timestamps": self.hparams.without_timestamps if hasattr(self.hparams, "without_timestamps") else True,
             "beam_size": self.hparams.beam_size if hasattr(self.hparams, "beam_size") else None
         }
-        loss_options = { 
+        loss_options = {
             "confidence": self.hparams.confidence if hasattr(self.hparams, "confidence") else 0.,
             "correct_first_word": self.hparams.correct_first_word if hasattr(self.hparams, "correct_first_word") else False
         }
@@ -62,15 +62,18 @@ class WhisperASR(AdvASRBrain):
         if stage != sb.Stage.TRAIN and stage != rs.Stage.ATTACK:
             # Decode token terms to words
             with torch.no_grad():
-                result = self.modules.whisper.model.loss(wavs[0],tokens[0], task="transcribe", **loss_options, **options)
+                result = self.modules.whisper.model.loss(
+                    wavs[0], tokens[0], task="transcribe", **loss_options, **options)
                 loss = result["loss"].detach()
                 #logits = result["logits"]
                 #pred_tokens = logits.argmax(dim=-1)
-                result = self.modules.whisper.model.transcribe(wavs[0], task="transcribe", **options)
+                result = self.modules.whisper.model.transcribe(
+                    wavs[0], task="transcribe", **options)
                 text = result["text"]
                 pred_tokens = torch.LongTensor([self.tokenizer.encode(text)])
         else:
-            result = self.modules.whisper.model.loss(wavs[0],tokens[0], task="transcribe", **loss_options, **options)
+            result = self.modules.whisper.model.loss(
+                wavs[0], tokens[0], task="transcribe", **loss_options, **options)
             loss = result["loss"]
             #logits = self.modules.whisper.model.transcribe(wavs[0], beam_size=1)
             logits = result["logits"]
@@ -80,14 +83,14 @@ class WhisperASR(AdvASRBrain):
     def get_tokens(self, predictions):
         #text = predictions[1]["text"]
         #tokens = torch.LongTensor([self.tokenizer.encode(text)])
-        tokens = predictions[1][:,:-1].cpu()
+        tokens = predictions[1][:, :-1].cpu()
         return tokens
 
     def compute_objectives(
         self, predictions, batch, stage, adv=False, targeted=False, reduction="mean"
     ):
         """Computes the loss (CTC+NLL) given predictions and targets."""
-        
+
         loss, pred_tokens, wav_lens = predictions
 
         ids = batch.id
@@ -102,9 +105,12 @@ class WhisperASR(AdvASRBrain):
 
         if stage != sb.Stage.TRAIN and stage != rs.Stage.ATTACK:
             # Decode token terms to words
-            predicted_words = [self.tokenizer.decode(t).strip().upper().translate(str.maketrans('', '', string.punctuation)) for t in pred_tokens]
+            #predicted_words = [self.tokenizer.decode(t).strip().upper().translate(str.maketrans('', '', string.punctuation)) for t in pred_tokens]
+            predicted_words = [self.tokenizer.decode(
+                t).strip() for t in pred_tokens]
             predicted_words = [wrd.split(" ") for wrd in predicted_words]
-            target_words = [wrd.upper().upper().translate(str.maketrans('', '', string.punctuation)).split(" ") for wrd in batch.wrd]
+            #target_words = [wrd.upper().upper().translate(str.maketrans('', '', string.punctuation)).split(" ") for wrd in batch.wrd]
+            target_words = [wrd.split(" ") for wrd in batch.wrd]
 
             if adv:
                 if targeted:
@@ -126,6 +132,7 @@ class WhisperASR(AdvASRBrain):
                 self.wer_metric.append(ids, predicted_words, target_words)
                 self.cer_metric.append(ids, predicted_words, target_words)
             print(" ".join(predicted_words[0]))
+            print(" ".join(target_words[0]))
         return loss
 
     def init_optimizers(self):
