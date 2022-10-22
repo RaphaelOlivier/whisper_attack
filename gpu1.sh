@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-#SBATCH --job-name=pgd
-#SBATCH --output=2pgd_res.txt
+#SBATCH --job-name=lang
+#SBATCH --output=lang_res.txt
 #
 #SBATCH --ntasks=1
 #SBATCH --partition=gpu2
@@ -11,4 +11,4 @@
 #SBATCH --time=72:00:00
 
 srun hostname
-srun ./pgd.sh
+srun ./lang.sh

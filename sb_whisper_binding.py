@@ -125,7 +125,7 @@ class WhisperASR(AdvASRBrain):
             else:
                 self.wer_metric.append(ids, predicted_words, target_words)
                 self.cer_metric.append(ids, predicted_words, target_words)
-            print(" ".join(predicted_words[0]))
+            #print(" ".join(predicted_words[0]))
         return loss
 
     def init_optimizers(self):
