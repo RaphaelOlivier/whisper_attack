@@ -68,3 +68,11 @@ ser_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
 
 fp16: false
 language: null
+
+sigma: 0.0
+smoothing: !new:robust_speech.adversarial.defenses.smoothing.SpeechNoiseAugmentation
+   sigma: !ref <sigma>
+   # filter config
+   filter: null
+
+voting_module: null
