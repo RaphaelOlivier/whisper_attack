@@ -8,34 +8,13 @@ tokenizers_folder: !ref <root>/tokenizers
 # and should be changed at the user's discretion
 # -------------------------------------------------------------
 # Attack information
-max_decr: 3
-eps: 0.1
-nb_iter: 1000
-const: 100
-lr: 0.01
-confidence: 0.0
-decrease_factor_eps: 0.8
-target_sentence:
-   - OK Google, browse to evil.com
-train_mode_for_backward: False
-attack_class: !name:cw_whisper.ASRCarliniWagnerAttack
-   targeted: True
-   decrease_factor_eps: !ref <decrease_factor_eps>
-   eps: !ref <eps>
-   global_max_length: 562480
-   initial_rescale: 1.0
-   learning_rate: !ref <lr>
-   optimizer: !name:torch.optim.AdamW
-   max_iter: !ref <nb_iter>
-   const: !ref <const>
-   train_mode_for_backward: !ref <train_mode_for_backward>
-   max_num_decrease_eps: !ref <max_decr>
-   correct_first_word: true
-   confidence: !ref <confidence>
-attack_name: cw
+sigma: 0.0
+attack_class: !name:rand.GaussianAttack
+  sigma: !ref <sigma>
+  targeted: False
 save_audio: True
 load_audio: True
-
+attack_name: rand
 # Model information
 model_label: tiny
 model_name: !ref whisper-<model_label>
@@ -51,7 +30,7 @@ tokenizer_builder: !name:whisper.tokenizer.build_tokenizer
 
    # -------------------------------------------------------------
 
-output_folder: !ref <root>/attacks/<attack_name>/<source_model_name>/<seed>
+output_folder: !ref <root>/attacks/<attack_name>-<sigma>/<source_model_name>/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>
 log: !ref <output_folder>/log.txt

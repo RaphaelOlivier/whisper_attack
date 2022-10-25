@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-#SBATCH --job-name=lang
-#SBATCH --output=lang_res.txt
+#SBATCH --job-name=lang1
+#SBATCH --output=1lang_res.txt
 #
 #SBATCH --ntasks=1
 #SBATCH --partition=gpu2
@@ -11,4 +11,4 @@
 #SBATCH --time=72:00:00
 
 srun hostname
-srun ./lang.sh
+srun ./lang1.sh

@@ -125,10 +125,18 @@ class ASRCarliniWagnerAttack(ImperceptibleASRAttack):
         loss = self.asr_brain.compute_objectives(
             predictions, batch, rs.Stage.ATTACK)
         loss_backward = loss + self.reg_const * torch.norm(local_delta_rescale)
-        #self.asr_brain.module_eval()
-        #val_predictions = self.asr_brain.compute_forward(batch, sb.Stage.VALID)
         decoded_output = self.asr_brain.get_tokens(predictions)
 
+        # if teacher forcing prediction is correct, check decoder transcription
+        if (decoded_output[0].view(-1) == batch.tokens[0].cpu().view(-1)).all(): 
+            #print("teacher forcing correct")
+            #print(self.asr_brain.tokenizer.decode(decoded_output[0]))
+            self.asr_brain.module_eval()
+            val_predictions = self.asr_brain.compute_forward(batch, sb.Stage.VALID)
+            val_decoded_output = self.asr_brain.get_tokens(val_predictions)
+            #print(self.asr_brain.tokenizer.decode(val_decoded_output[0]))
+            #print()
+            decoded_output=val_decoded_output
         # print(loss_eval.item())
         #print(decoded_output)
         if self.train_mode_for_backward:

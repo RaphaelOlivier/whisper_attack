@@ -134,7 +134,6 @@ def get_loss_from_mel(model: "Whisper", mel: Tensor, label: Union[str, torch.Ten
     single = mel.ndim == 2
     if single:
         mel = mel.unsqueeze(0)
-
     result = LossTask(model, confidence, correct_first_word, options).run(mel,label)
     if single:
         result = result[0]
@@ -377,6 +376,7 @@ def get_loss_single_segment(
     options["language"] = "en"
     language = options["language"]
     task = options.get("task", "transcribe")
+    
     result: LossResult = get_loss_from_mel(
         model, mel, label, 
         confidence, 

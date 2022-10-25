@@ -100,7 +100,7 @@ def evaluate(hparams_file, run_opts, overrides):
 
     dataio_prepare = hparams["dataio_prepare_fct"]
     tokenizer = hparams["tokenizer_builder"](hparams["tokenizer_name"])
-    hparams["tokenizer"]=tokenizer
+    hparams["tokenizer"] = tokenizer
 
     # here we create the datasets objects as well as tokenization and encoding
     _, _, test_datasets, _, _, tokenizer = dataio_prepare(hparams)
@@ -160,7 +160,6 @@ def evaluate(hparams_file, run_opts, overrides):
         )
     target_brain.logger = hparams["logger"]
     target_brain.hparams.train_logger = hparams["logger"]
-
     #attacker.other_asr_brain = target_brain
     target = None
     if "target_generator" in hparams:
