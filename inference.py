@@ -17,7 +17,6 @@ librispeech_short = librispeech_eval.filter(lambda example: example["audio"]["ar
 
 def map_to_pred(batch):
     input_features = processor(batch["audio"][0]["array"], return_tensors="pt").input_features
-    print(batch["audio"][0]["array"].shape,input_features.size())
     #sos = torch.tensor([[50259,50359,50363]])
     #sos = processor.get_decoder_prompt_ids(language = "en", task = "transcribe")
     #logits = model(input_features.to("cuda"),decoder_input_ids = sos.to("cuda")).logits
