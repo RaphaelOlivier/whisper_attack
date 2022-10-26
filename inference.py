@@ -87,10 +87,6 @@ def evaluate_on_adv_examples(model_name,config_name,split_name,language=None):
 
     def map_to_pred(batch):
         input_features = processor(batch["audio"][0]["array"], return_tensors="pt").input_features
-        #sos = torch.tensor([[50259,50359,50363]])
-        #sos = processor.get_decoder_prompt_ids(language = "en", task = "transcribe")
-        #logits = model(input_features.to("cuda"),decoder_input_ids = sos.to("cuda")).logits
-        #predicted_ids = torch.argmax(logits, dim=-1)
         predicted_ids = model.generate(input_features.to("cuda"))
         transcription = processor.batch_decode(predicted_ids, normalize = True)
         batch['text'][0] = processor.tokenizer._normalize(batch['text'][0])
