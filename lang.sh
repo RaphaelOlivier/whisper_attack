@@ -1,5 +1,4 @@
 #! /bin/bash
-source activate sp3
 NBITER=30
 SEED=1030
 LOAD=True

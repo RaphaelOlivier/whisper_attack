@@ -1,5 +1,4 @@
 #! /bin/bash
-source activate sp3
 LOAD=True
 DATA=test-clean-100
 NAME=pgd

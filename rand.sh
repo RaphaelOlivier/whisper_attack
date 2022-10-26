@@ -1,5 +1,4 @@
 #! /bin/bash
-source activate sp3
 DATA=test-clean-100
 python run_attack.py attack_configs/rand.yaml --data_csv_name=$DATA --model_label=tiny --root=$RSROOT --sigma=0.09 --save_audio=False --load_audio=False
 python run_attack.py attack_configs/rand.yaml --data_csv_name=$DATA --model_label=tiny.en --root=$RSROOT --sigma=0.15 --save_audio=False --load_audio=False
