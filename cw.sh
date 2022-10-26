@@ -3,7 +3,7 @@ source activate sp3
 NBITER=2000
 SEED=2000
 LOAD=False
-NAME=cw_upload
+NAME=cw
 EPS=0.1
 MAXDECR=8
 DATA=test-clean-20

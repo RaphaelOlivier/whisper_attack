@@ -1,6 +1,5 @@
 #! /bin/bash
 source activate sp3
-NBITER=100
 LOAD=True
 DATA=test-clean-100
 NAME=pgd
