@@ -114,14 +114,10 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
                     "file": datasets.Value("string"),
                     "audio": datasets.Audio(sampling_rate=16_000),
                     "text": datasets.Value("string"),
-                    "speaker_id": datasets.Value("int64"),
-                    "chapter_id": datasets.Value("int64"),
                     "id": datasets.Value("string"),
                 }
             ),
             supervised_keys=("file", "text"),
-            homepage=_URL,
-            citation=_CITATION,
             task_templates=[AutomaticSpeechRecognition(audio_column="audio", transcription_column="text")],
         )
 
@@ -144,13 +140,13 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
             "targeted":2000,
             "untargeted-35": 235,
             "untargeted-40":240,
-            "language-armenian":1000,
-            "language-lithuanian":1000,
-            "language-czech":1000,
-            "language-danish":1000,
-            "language-indonesian":1000,
-            "language-italian":1000,
-            "language-english":1000
+            "language-armenian":1030,
+            "language-lithuanian":1030,
+            "language-czech":1030,
+            "language-danish":1030,
+            "language-indonesian":1030,
+            "language-italian":1030,
+            "language-english":1030
         }
         folders = {
              "targeted":"cw",
@@ -170,19 +166,19 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
             lang = self.config.name.split("language-")[-1]
             splits = [
                 datasets.SplitGenerator(
-                    name=lang+"-"+target[0],
+                    name=lang+"."+target[0],
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_archive(archive_path["all"]),
-                        "path_audio": os.path.join(folders[self.config.name]+"-"+target[1],"whisper-medium",seeds[self.config.name],"save")
+                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
+                        "path_audio": os.path.join(folders[self.config.name]+"-"+target[1],"whisper-medium",str(seeds[self.config.name]),"save")
                     },
                 ) for target in targets
             ] + [
                 datasets.SplitGenerator(
-                    name=lang+"-original",
+                    name="original",
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_archive(archive_path["all"]),
+                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
                         "path_audio": folders[self.config.name]+"-original"
                     },
                 )
@@ -190,11 +186,11 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
         else:
             splits = [
             datasets.SplitGenerator(
-                    name=model,
+                    name=model.replace("-","."),
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_archive(archive_path["all"]),
-                        "path_audio": os.path.join(folders[self.config.name],model,seeds[self.config.name],"save")
+                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
+                        "path_audio": os.path.join(folders[self.config.name],model,str(seeds[self.config.name]),"save")
                     },
                 ) for model in models
             ] + [
@@ -202,7 +198,7 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
                     name="original",
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_archive(archive_path["all"]),
+                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
                         "path_audio": os.path.join(folders[self.config.name],"original")
                     },
                 )
@@ -215,28 +211,29 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
         key = 0
         audio_data = {}
         transcripts = []
-        for path, f in files:
+        for path in files:
             if path.endswith(".csv"):
-                for line in f:
-                    if line:
-                        line = line.decode("utf-8").strip().split(",")
-                        id_ = line[0]
-                        transcript=line[-1]
-                        transcript = transcript[:-1] if transcript[-1]=='\n' else transcript
-                        suffix = "_nat.wav" if "original" in path_audio else "_adv.wav"
-                        audio_file = id_+suffix
-                        speaker_id, chapter_id = [int(el) for el in id_.split("-")[:2]]
-                        audio_file = os.path.join(local_extracted_archive,path_audio, audio_file)
-                        if os.path.exists(audio_file):
-                            with open(audio_file,"rb") as f:
-                                audio_data[id_] = f.read()
-                            transcripts.append(
-                                {
-                                    "id": id_,
-                                    "file": audio_file,
-                                    "text": transcript,
-                                }
-                            )
+                with open(path,'r') as f:
+                    for line in f:
+                        if line:
+                            line = (line.decode("utf-8") if isinstance(line,bytes) else line)
+                            line=line.strip().split(",")
+                            id_ = line[0]
+                            transcript=line[-1]
+                            transcript = transcript[:-1] if transcript[-1]=='\n' else transcript
+                            suffix = "_nat.wav" if "original" in path_audio else "_adv.wav"
+                            audio_file = id_+suffix
+                            audio_file = os.path.join(local_extracted_archive,path_audio, audio_file)
+                            if os.path.exists(audio_file):
+                                with open(audio_file,"rb") as f:
+                                    audio_data[id_] = f.read()
+                                transcripts.append(
+                                    {
+                                        "id": id_,
+                                        "file": audio_file,
+                                        "text": transcript,
+                                    }
+                                )
         for transcript in transcripts:
             audio = {"path": transcript["file"], "bytes": audio_data[transcript["id"]]}
             yield key, {"audio": audio, **transcript}
