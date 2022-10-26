@@ -32,3 +32,5 @@ in the `whisper_adversarial_examples` folder, we provide all our precomputed adv
 python inference.py --model whisper-medium.en --config untargeted-35
 ```
 More examples are proposed in the `inference.sh` script.
+
+The dataset is also available [on the Hub](https://huggingface.co/datasets/RaphaelOlivier/whisper_adversarial_examples). Or you can just download the [archives](https://data.mendeley.com/datasets/96dh52hz9r/draft?a=ee30841f-1832-41ec-bdac-bf3e5b67073c).
