@@ -1,6 +1,6 @@
 # whisper_attack
 
-This repository contains code to fool Whisper ASR models with adversarial examples. It accompanies a paper currently under submission.
+This repository contains code to fool Whisper ASR models with adversarial examples. It accompanies [our paper](https://arxiv.org/abs/2210.17316).
 
 We provide code to generate examples as we did, and to evaluate Whisper on our examples via huggingface transformers.
 
