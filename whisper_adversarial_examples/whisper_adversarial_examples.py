@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Lint as: python3
-"""Librispeech automatic speech recognition dataset."""
+"""Adversarial examples against Whisper"""
 
 
 import os
@@ -23,58 +23,46 @@ import datasets
 from datasets.tasks import AutomaticSpeechRecognition
 
 
-_CITATION = """\
-@inproceedings{panayotov2015librispeech,
-  title={Librispeech: an ASR corpus based on public domain audio books},
-  author={Panayotov, Vassil and Chen, Guoguo and Povey, Daniel and Khudanpur, Sanjeev},
-  booktitle={Acoustics, Speech and Signal Processing (ICASSP), 2015 IEEE International Conference on},
-  pages={5206--5210},
-  year={2015},
-  organization={IEEE}
-}
-"""
-
 _DESCRIPTION = """\
 Adversarial examples fooling whisper models
 """
 
-
 _DL_URLS = {
     "targeted": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/75f06ad3-4f86-4f4b-b748-ea0e94f23379?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/10432840-4a07-49fa-8320-0af2a8288435/file_downloaded"
     },
     "untargeted-35": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/fc7810ca-6dd9-42ae-ba22-575e785957ed?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/516787a5-4832-4432-9138-9f01cccc4875/file_downloaded"
     },
     "untargeted-40": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/6e3bdf4a-6a5a-4ae6-b565-1646395d1090?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/ed7127c6-9769-4db5-ab5a-98e9ce15a6ae/file_downloaded"
     },
     "language-armenian": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/89eab218-77f2-4f4a-9e30-9ed7b07369fb?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/57a8301c-a3de-4f34-a321-6cbdec5b7d55/file_downloaded"
     },
     "language-lithuanian": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/60f5f101-cde5-40cf-ab63-af484e7ceb36?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/b8dc1e63-d308-45e8-b16c-98ca4ac3e939/file_downloaded"
     },
     "language-czech": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/5986b1cd-08ac-4e08-beb3-151396dd2e28?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/8e5246e6-dfad-4d4c-aa1e-091cf24d975c/file_downloaded"
     },
     "language-danish": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/f6a88d17-81d7-4491-a760-f937bfb43bd6?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/15a27ffe-8ad3-4a92-adfc-ac1c6a7b230b/file_downloaded"
     },
     "language-indonesian": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/d508566f-6cb9-4a75-a317-6f1b86f1273f?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/ad3366b1-21a4-4ad4-9755-8a1d3775db62/file_downloaded"
     },
     "language-italian": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/e9052368-1dc4-4c85-b00c-a168868442ce?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/1729f188-ae9f-4a29-a8da-9597c1f2d0cc/file_downloaded"
     },
     "language-english": {
-        "all": "https://data.mendeley.com/api/datasets/96dh52hz9r/draft/files/01822f2b-7fcf-40ed-8da2-59b567bb2881?a=ee30841f-1832-41ec-bdac-bf3e5b67073c"
+        "all": "https://data.mendeley.com/public-files/datasets/96dh52hz9r/files/7d09cf90-af7d-4d33-914a-3002ea956a53/file_downloaded"
     },
 }
 
 
-class LibrispeechASRConfig(datasets.BuilderConfig):
-    """BuilderConfig for LibriSpeechASR."""
+class AdvWhisperASRConfig(datasets.BuilderConfig):
+    """BuilderConfig for AdvWhisperASR."""
 
     def __init__(self, **kwargs):
         """
@@ -85,25 +73,25 @@ class LibrispeechASRConfig(datasets.BuilderConfig):
           url: `string`, url for information about the data set
           **kwargs: keyword arguments forwarded to super.
         """
-        super(LibrispeechASRConfig, self).__init__(version=datasets.Version("0.1.0", ""), **kwargs)
+        super(AdvWhisperASRConfig, self).__init__(version=datasets.Version("0.1.0", ""), **kwargs)
 
 
-class LibrispeechASR(datasets.GeneratorBasedBuilder):
-    """Librispeech dataset."""
+class AdvWhisperASR(datasets.GeneratorBasedBuilder):
+    """whisper_adversarial_examples dataset."""
 
     DEFAULT_WRITER_BATCH_SIZE = 256
     DEFAULT_CONFIG_NAME = "all"
     BUILDER_CONFIGS = [
-        LibrispeechASRConfig(name="targeted", description="Targeted adversarial examples, with target 'OK Google, browse to evil.com'"),
-        LibrispeechASRConfig(name="untargeted-35", description="Untargeted adversarial examples of radius approximately 35dB"),
-        LibrispeechASRConfig(name="untargeted-40", description="Untargeted adversarial examples of radius approximately 40dB"),
-        LibrispeechASRConfig(name="language-armenian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Armenian"),
-        LibrispeechASRConfig(name="language-lithuanian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Lithuanian"),
-        LibrispeechASRConfig(name="language-czech", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Czech"),
-        LibrispeechASRConfig(name="language-danish", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Danish"),
-        LibrispeechASRConfig(name="language-indonesian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Indonesian"),
-        LibrispeechASRConfig(name="language-italian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Italian"),
-        LibrispeechASRConfig(name="language-english", description="Adversarial examples generated by fooling the whisper language detection module. The true language is English")
+        AdvWhisperASRConfig(name="targeted", description="Targeted adversarial examples, with target 'OK Google, browse to evil.com'"),
+        AdvWhisperASRConfig(name="untargeted-35", description="Untargeted adversarial examples of radius approximately 35dB"),
+        AdvWhisperASRConfig(name="untargeted-40", description="Untargeted adversarial examples of radius approximately 40dB"),
+        AdvWhisperASRConfig(name="language-armenian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Armenian"),
+        AdvWhisperASRConfig(name="language-lithuanian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Lithuanian"),
+        AdvWhisperASRConfig(name="language-czech", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Czech"),
+        AdvWhisperASRConfig(name="language-danish", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Danish"),
+        AdvWhisperASRConfig(name="language-indonesian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Indonesian"),
+        AdvWhisperASRConfig(name="language-italian", description="Adversarial examples generated by fooling the whisper language detection module. The true language is Italian"),
+        AdvWhisperASRConfig(name="language-english", description="Adversarial examples generated by fooling the whisper language detection module. The true language is English")
     ]
 
     def _info(self):
@@ -169,7 +157,7 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
                     name=lang+"."+target[0],
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
+                        "files": dl_manager.iter_archive(archive_path["all"]),
                         "path_audio": os.path.join(folders[self.config.name]+"-"+target[1],"whisper-medium",str(seeds[self.config.name]),"save")
                     },
                 ) for target in targets
@@ -178,7 +166,7 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
                     name="original",
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
+                        "files": dl_manager.iter_archive(archive_path["all"]),
                         "path_audio": folders[self.config.name]+"-original"
                     },
                 )
@@ -189,7 +177,7 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
                     name=model.replace("-","."),
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
+                        "files": dl_manager.iter_archive(archive_path["all"]),
                         "path_audio": os.path.join(folders[self.config.name],model,str(seeds[self.config.name]),"save")
                     },
                 ) for model in models
@@ -198,7 +186,7 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
                     name="original",
                     gen_kwargs={
                         "local_extracted_archive": local_extracted_archive.get("all"),
-                        "files": dl_manager.iter_files(local_extracted_archive.get("all")),
+                        "files": dl_manager.iter_archive(archive_path["all"]),
                         "path_audio": os.path.join(folders[self.config.name],"original")
                     },
                 )
@@ -207,36 +195,42 @@ class LibrispeechASR(datasets.GeneratorBasedBuilder):
         return splits
 
     def _generate_examples(self, files, local_extracted_archive,path_audio):
-        """Generate examples from a LibriSpeech archive_path."""
+        """Generate examples from an extracted path."""
         key = 0
+        suffix = "_nat.wav" if "original" in path_audio else "_adv.wav"
         audio_data = {}
         transcripts = []
-        for path in files:
-            if path.endswith(".csv"):
-                with open(path,'r') as f:
-                    for line in f:
-                        if line:
-                            line = (line.decode("utf-8") if isinstance(line,bytes) else line)
-                            line=line.strip().split(",")
-                            id_ = line[0]
-                            transcript=line[-1]
-                            transcript = transcript[:-1] if transcript[-1]=='\n' else transcript
-                            suffix = "_nat.wav" if "original" in path_audio else "_adv.wav"
-                            audio_file = id_+suffix
-                            audio_file = os.path.join(local_extracted_archive,path_audio, audio_file)
-                            if os.path.exists(audio_file):
-                                with open(audio_file,"rb") as f:
-                                    audio_data[id_] = f.read()
-                                transcripts.append(
-                                    {
-                                        "id": id_,
-                                        "file": audio_file,
-                                        "text": transcript,
-                                    }
-                                )
+        for t in files:
+            path, f = t
+            if path.endswith(".wav"):
+                if path_audio in path and path.endswith(suffix):
+                    id_ = path.split("/")[-1][: -len(suffix)]
+                    audio_data[id_] = f.read()
+            elif path.endswith(".csv"):
+                for line in f:
+                    if line:
+                        line = (line.decode("utf-8") if isinstance(line,bytes) else line)
+                        line=line.strip().split(",")
+                        id_ = line[0]
+                        transcript=line[-1]
+                        transcript = transcript[:-1] if transcript[-1]=='\n' else transcript
+                        audio_file = id_+suffix
+                        audio_file = (
+                            os.path.join(local_extracted_archive,path_audio, audio_file)
+                            if local_extracted_archive else audio_file
+                        )
+                        transcripts.append(
+                            {
+                                "id": id_,
+                                "file": audio_file,
+                                "text": transcript,
+                            }
+                        )
+        
         for transcript in transcripts:
-            audio = {"path": transcript["file"], "bytes": audio_data[transcript["id"]]}
-            yield key, {"audio": audio, **transcript}
-            key += 1
+            if transcript["id"] in audio_data:
+                audio = {"path": transcript["file"], "bytes": audio_data[transcript["id"]]}
+                yield key, {"audio": audio, **transcript}
+                key += 1
         audio_data = {}
         transcripts = []
