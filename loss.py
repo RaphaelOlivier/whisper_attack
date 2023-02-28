@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Iterable, Optional, Sequence, Union, TYPE_CHECKING
 import tqdm
+import sys
 import warnings
 import numpy as np
 import torch
@@ -9,7 +10,7 @@ from torch import Tensor
 from torch.distributions import Categorical
 from whisper.audio import CHUNK_LENGTH, SAMPLE_RATE, N_FRAMES, HOP_LENGTH, pad_or_trim, log_mel_spectrogram
 from whisper.tokenizer import Tokenizer, get_tokenizer
-from whisper.utils import compression_ratio, exact_div, format_timestamp, optional_int, optional_float, str2bool, write_txt, write_vtt, write_srt
+from whisper.utils import compression_ratio, exact_div, format_timestamp, make_safe, optional_int, optional_float, str2bool, get_writer
 from whisper.decoding import DecodingTask, DecodingOptions
 if TYPE_CHECKING:
     from whisper.model import Whisper
@@ -152,6 +153,7 @@ def get_loss(
     logprob_threshold: Optional[float] = -1.0,
     no_speech_threshold: Optional[float] = 0.6,
     condition_on_previous_text: bool = True,
+    initial_prompt: Optional[str] = None,
     **decode_options,
 ):
     """
@@ -166,7 +168,7 @@ def get_loss(
         Whether to display the text being decoded to the console. If True, displays all the details,
         If False, displays minimal details. If None, does not display anything
     temperature: Union[float, Tuple[float, ...]]
-        Temperature for sampling. It can be a tuple of temperatures, which will be successfully used
+        Temperature for sampling. It can be a tuple of temperatures, which will be successively used
         upon failures according to either `compression_ratio_threshold` or `logprob_threshold`.
     compression_ratio_threshold: float
         If the gzip compression ratio is above this value, treat as failed
@@ -214,10 +216,11 @@ def get_loss(
     all_segments = []
     prompt_reset_since = 0
 
-    initial_prompt = decode_options.pop("initial_prompt", None) or []
-    if initial_prompt:
-        initial_prompt = tokenizer.encode(" " + initial_prompt.strip())
-        all_tokens.extend(initial_prompt)
+    if initial_prompt is not None:
+        initial_prompt_tokens = tokenizer.encode(" " + initial_prompt.strip())
+        all_tokens.extend(initial_prompt_tokens)
+    else:
+        initial_prompt_tokens = []
 
     def add_segment(
         *, start: float, end: float, text_tokens: torch.Tensor, result: LossResult
@@ -233,7 +236,7 @@ def get_loss(
                 "start": start,
                 "end": end,
                 "text": text,
-                "tokens": result.tokens,
+                "tokens": text_tokens.tolist(),
                 "temperature": result.temperature,
                 "avg_logprob": result.avg_logprob,
                 "compression_ratio": result.compression_ratio,
@@ -241,7 +244,7 @@ def get_loss(
             }
         )
         if verbose:
-            print(f"[{format_timestamp(start)} --> {format_timestamp(end)}] {text}")
+            print(make_safe(f"[{format_timestamp(start)} --> {format_timestamp(end)}] {text}"))
 
     # show the progress bar when verbose is False (otherwise the transcribed text will be printed)
     num_frames = mel.shape[-1]
@@ -319,8 +322,11 @@ def get_loss(
             pbar.update(min(num_frames, seek) - previous_seek_value)
             previous_seek_value = seek
         loss = result.loss
-    return dict(text=tokenizer.decode(all_tokens[len(initial_prompt):]), segments=all_segments, language=language, loss = loss)
-
+    return dict(
+        text=tokenizer.decode(all_tokens[len(initial_prompt_tokens):]),
+        segments=all_segments,
+        language=language
+    )
 
 def get_loss_single_segment(
     model: "Whisper",
@@ -349,7 +355,7 @@ def get_loss_single_segment(
         Whether to display the text being decoded to the console. If True, displays all the details,
         If False, displays minimal details. If None, does not display anything
     temperature: Union[float, Tuple[float, ...]]
-        Temperature for sampling. It can be a tuple of temperatures, which will be successfully used
+        Temperature for sampling. It can be a tuple of temperatures, which will be successively used
         upon failures according to either `compression_ratio_threshold` or `logprob_threshold`.
     compression_ratio_threshold: float
         If the gzip compression ratio is above this value, treat as failed
