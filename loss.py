@@ -31,8 +31,8 @@ class LossResult:
 
 class LossTask(DecodingTask):
 
-    def __init__(self,model,confidence, correct_first_word,*args, **kwargs):
-        super(LossTask,self).__init__(model,*args,**kwargs)
+    def __init__(self,model,confidence, correct_first_word,options,*args, **kwargs):
+        super(LossTask,self).__init__(model,options,*args,**kwargs)
         self.correct_first_word=correct_first_word
         self.confidence=confidence
 
@@ -376,13 +376,12 @@ def get_loss_single_segment(
     the spoken language ("language"), which is detected when `options["language"]` is None.
     """
     dtype = torch.float16 if options.get("fp16", True) else torch.float32
-    audio = audio.to(model.device)
-    mel = log_mel_spectrogram(audio)
+    audio = audio.to(model.device).to(dtype)
+    mel = log_mel_spectrogram(audio).to(dtype)
     mel = pad_or_trim(mel,N_FRAMES)
     options["language"] = "en"
     language = options["language"]
     task = options.get("task", "transcribe")
-    
     result: LossResult = get_loss_from_mel(
         model, mel, label, 
         confidence, 
