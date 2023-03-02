@@ -99,8 +99,11 @@ def evaluate(hparams_file, run_opts, overrides):
     )
 
     dataio_prepare = hparams["dataio_prepare_fct"]
-    tokenizer = hparams["tokenizer_builder"](hparams["tokenizer_name"])
-    hparams["tokenizer"] = tokenizer
+    if "tokenizer_builder" in hparams:
+        tokenizer = hparams["tokenizer_builder"](hparams["tokenizer_name"])
+        hparams["tokenizer"] = tokenizer
+    else:
+        tokenizer=hparams["tokenizer"]
 
     # here we create the datasets objects as well as tokenization and encoding
     _, _, test_datasets, _, _, tokenizer = dataio_prepare(hparams)
