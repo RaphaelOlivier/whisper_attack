@@ -12,8 +12,8 @@ sigma: 0.0
 attack_class: !name:rand.GaussianAttack
   sigma: !ref <sigma>
   targeted: False
-save_audio: True
-load_audio: True
+save_audio: False
+load_audio: False
 attack_name: rand
 # Model information
 model_label: tiny
