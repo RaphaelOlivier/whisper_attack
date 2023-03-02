@@ -41,6 +41,7 @@ def compute_objectives_lang(
     assert stage == rs.Stage.ATTACK
     language_tokens, language_probs, logits = predictions
     tokens=lang_token.to(whisper_asr_brain.device)
+    #print(language_tokens, logits[0,language_tokens.item()],logits[0,tokens.item()])
     loss_fct = nn.CrossEntropyLoss(reduction=reduction)
     loss = loss_fct(logits,tokens)
     return loss
