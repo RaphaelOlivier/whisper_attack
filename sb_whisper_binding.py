@@ -45,6 +45,7 @@ class WhisperASR(AdvASRBrain):
         }
         if options["fp16"]:
             self.modules.to(torch.float16)
+        dtype = torch.float16 if options["fp16"] else torch.float32
 
         if hasattr(self.hparams, "smoothing") and self.hparams.smoothing:
             wavs = self.hparams.smoothing(wavs, wav_lens)
@@ -64,7 +65,7 @@ class WhisperASR(AdvASRBrain):
             # Decode token terms to words
             with torch.no_grad():
                 result = self.modules.whisper.model.loss(
-                    wavs[0], tokens[0], task="transcribe", **loss_options, **options)
+                    wavs[0].to(dtype), tokens[0], task="transcribe", **loss_options, **options)
                 loss = result["loss"].detach()
                 #logits = result["logits"]
                 #pred_tokens = logits.argmax(dim=-1)
