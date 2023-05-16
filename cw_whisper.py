@@ -89,8 +89,8 @@ class ASRCarliniWagnerAttack(ImperceptibleASRAttack):
             clip_max=clip_max,
         )
         self.reg_const = 1./const if const is not None else 0.
-        self.confidence=confidence
-        self.correct_first_word=correct_first_word
+        self.confidence = confidence
+        self.correct_first_word = correct_first_word
         self.asr_brain.hparams.confidence = self.confidence
         self.asr_brain.hparams.correct_first_word = self.correct_first_word
 
@@ -125,12 +125,11 @@ class ASRCarliniWagnerAttack(ImperceptibleASRAttack):
         loss = self.asr_brain.compute_objectives(
             predictions, batch, rs.Stage.ATTACK)
         loss_backward = loss + self.reg_const * torch.norm(local_delta_rescale)
-        #self.asr_brain.module_eval()
+        # self.asr_brain.module_eval()
         #val_predictions = self.asr_brain.compute_forward(batch, sb.Stage.VALID)
         decoded_output = self.asr_brain.get_tokens(predictions)
-
         # print(loss_eval.item())
-        #print(decoded_output)
+        # print(decoded_output)
         if self.train_mode_for_backward:
             self.asr_brain.module_train()
         return loss_backward, loss, local_delta, decoded_output, masked_adv_input, local_delta_rescale
