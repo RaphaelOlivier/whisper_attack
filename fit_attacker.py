@@ -25,7 +25,10 @@ from speechbrain.utils.distributed import run_on_main
 import robust_speech as rs
 from robust_speech.adversarial.brain import AdvASRBrain
 from robust_speech.adversarial.utils import TargetGeneratorFromFixedTargets
+import logging
 
+logger = logging.getLogger("speechbrain.utils.epoch_loop")
+logger.setLevel(logging.WARNING)
 
 def read_brains(
     brain_classes,
@@ -174,6 +177,9 @@ def fit(hparams_file, run_opts, overrides):
     # Training
     checkpointer = hparams["checkpointer"]
     target_brain.attacker.checkpointer=checkpointer
+    checkpointer.recover_if_possible(
+                device=run_opts["device"]
+            )
     target_brain.fit_attacker(
         train_dataset,
         loader_kwargs=hparams["train_dataloader_opts"],

@@ -9,14 +9,18 @@ tokenizers_folder: !ref <root>/tokenizers
 # -------------------------------------------------------------
 # Attack information
 eps: 0.005
-nb_iter: 100
-rel_eps_iter: 0.1
+eps_item: 0.001
+nb_iter: 1
+rel_eps_iter: 0.01
 lang_CV: en
 lang_attack: es
 targeted_for_language: true
+success_every: 100
 delta: !new:robust_speech.adversarial.utils.TensorModule
    size: (288000,)
-epochs: 10
+epochs: 10000
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <epochs>
 
 attack_class: !name:universal_lang_attack.UniversalWhisperLanguageAttack
   eps: !ref <eps>
@@ -24,7 +28,10 @@ attack_class: !name:universal_lang_attack.UniversalWhisperLanguageAttack
   language: !ref <lang_attack>
   targeted_for_language: !ref <targeted_for_language>
   rel_eps_iter: !ref <rel_eps_iter>
-  nb_epochs: !ref <epochs>
+  success_every: !ref <success_every>
+  eps_item: !ref <eps_item>
+  univ_perturb: !ref <delta>
+  epoch_counter: !ref <epoch_counter>
 
 attack_name: univ_lang
 save_audio: True
@@ -45,7 +52,7 @@ tokenizer_builder: !name:whisper.tokenizer.build_tokenizer
 
    # -------------------------------------------------------------
 
-output_folder: !ref <root>/attacks/<attack_name>/<lang_CV>-<lang_attack>/<source_model_name>/<seed>
+output_folder: !ref <root>/attacks/<attack_name>/<lang_attack>/<source_model_name>/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>
 log: !ref <output_folder>/log.txt
@@ -77,6 +84,7 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
    checkpoints_dir: !ref <output_folder>
    recoverables:
       delta: !ref <delta>
+      epoch_counter: !ref <epoch_counter>
 
 # Feature parameters
 sample_rate: 16000
@@ -91,7 +99,7 @@ eos_index: 2
 test_dataloader_opts:
     batch_size: 1
 train_dataloader_opts:
-    batch_size: 1
+    batch_size: !ref <batch_size>
 
 logger: !new:speechbrain.utils.train_logger.FileTrainLogger
     save_file: !ref <log>
