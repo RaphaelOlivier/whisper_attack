@@ -105,12 +105,14 @@ class WhisperASR(AdvASRBrain):
 
         if stage != sb.Stage.TRAIN and stage != rs.Stage.ATTACK:
             # Decode token terms to words
-            #predicted_words = [self.tokenizer.decode(t).strip().upper().translate(str.maketrans('', '', string.punctuation)) for t in pred_tokens]
-            predicted_words = [self.tokenizer.decode(
-                t).strip() for t in pred_tokens]
+            predicted_words = [self.tokenizer.decode(t).strip().upper().translate(
+                str.maketrans('', '', string.punctuation)) for t in pred_tokens]
+            # predicted_words = [self.tokenizer.decode(
+            #    t).strip() for t in pred_tokens]
             predicted_words = [wrd.split(" ") for wrd in predicted_words]
-            #target_words = [wrd.upper().upper().translate(str.maketrans('', '', string.punctuation)).split(" ") for wrd in batch.wrd]
-            target_words = [wrd.split(" ") for wrd in batch.wrd]
+            target_words = [wrd.upper().translate(str.maketrans(
+                '', '', string.punctuation)).split(" ") for wrd in batch.wrd]
+            #target_words = [wrd.split(" ") for wrd in batch.wrd]
 
             if adv:
                 if targeted:
@@ -131,7 +133,9 @@ class WhisperASR(AdvASRBrain):
             else:
                 self.wer_metric.append(ids, predicted_words, target_words)
                 self.cer_metric.append(ids, predicted_words, target_words)
-            #print(" ".join(predicted_words[0]))
+            if adv and targeted:
+                print(" ".join(predicted_words[0]))
+                #print(" ".join(target_words[0]))
         return loss
 
     def init_optimizers(self):
