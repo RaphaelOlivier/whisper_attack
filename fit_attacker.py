@@ -11,7 +11,7 @@ the adversarial perturbations. Each of them can be specified as a (nested) list,
 the brain will be an EnsembleASRBrain object.
 
 Example:
-python evaluate.py attack_configs/pgd/attack.yaml\
+python run_attack.py attack_configs/pgd/attack.yaml\
      --root=/path/to/data/and/results/folder\
      --auto_mix_prec`
 """
@@ -22,11 +22,13 @@ from pathlib import Path
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
 from speechbrain.utils.distributed import run_on_main
-
 import robust_speech as rs
 from robust_speech.adversarial.brain import AdvASRBrain
 from robust_speech.adversarial.utils import TargetGeneratorFromFixedTargets
+import logging
 
+logger = logging.getLogger("speechbrain.utils.epoch_loop")
+logger.setLevel(logging.WARNING)
 
 def read_brains(
     brain_classes,
@@ -67,7 +69,7 @@ def read_brains(
     return brain
 
 
-def evaluate(hparams_file, run_opts, overrides):
+def fit(hparams_file, run_opts, overrides):
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
 
@@ -99,11 +101,14 @@ def evaluate(hparams_file, run_opts, overrides):
     )
 
     dataio_prepare = hparams["dataio_prepare_fct"]
-    tokenizer = hparams["tokenizer_builder"](hparams["tokenizer_name"])
-    hparams["tokenizer"]=tokenizer
+    if "tokenizer_builder" in hparams:
+        tokenizer = hparams["tokenizer_builder"](hparams["tokenizer_name"])
+        hparams["tokenizer"] = tokenizer
+    else:
+        tokenizer=hparams["tokenizer"]
 
     # here we create the datasets objects as well as tokenization and encoding
-    _, _, test_datasets, _, _, tokenizer = dataio_prepare(hparams)
+    train_dataset, _, test_datasets, _, _, tokenizer = dataio_prepare(hparams)
     source_brain = None
     if "source_brain_class" in hparams:  # loading source model
         source_brain = read_brains(
@@ -160,7 +165,6 @@ def evaluate(hparams_file, run_opts, overrides):
         )
     target_brain.logger = hparams["logger"]
     target_brain.hparams.train_logger = hparams["logger"]
-
     #attacker.other_asr_brain = target_brain
     target = None
     if "target_generator" in hparams:
@@ -170,6 +174,19 @@ def evaluate(hparams_file, run_opts, overrides):
             target=hparams["target_sentence"])
     load_audio = hparams["load_audio"] if "load_audio" in hparams else None
     save_audio_path = hparams["save_audio_path"] if hparams["save_audio"] else None
+    # Training
+    checkpointer = hparams["checkpointer"]
+    target_brain.attacker.checkpointer=checkpointer
+    checkpointer.recover_if_possible(
+                device=run_opts["device"]
+            )
+    target_brain.fit_attacker(
+        train_dataset,
+        loader_kwargs=hparams["train_dataloader_opts"],
+    )
+
+    # saving parameters
+    checkpointer.save_checkpoint()
     # Evaluation
     for k in test_datasets.keys():  # keys are test_clean, test_other etc
         target_brain.hparams.wer_file = os.path.join(
@@ -193,4 +210,4 @@ if __name__ == "__main__":
     # create ddp_group with the right communication protocol
     sb.utils.distributed.ddp_init_group(run_opts)
 
-    evaluate(hparams_file, run_opts, overrides)
+    fit(hparams_file, run_opts, overrides)

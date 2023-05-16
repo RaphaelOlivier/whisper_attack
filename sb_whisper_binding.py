@@ -33,7 +33,6 @@ class WhisperASR(AdvASRBrain):
         tokens_bos, _ = batch.tokens_bos
         # wavs, wav_lens = wavs.to(self.device), wav_lens.to(self.device)
         # Add augmentation if specified
-
         options = {
             "language": self.hparams.language if hasattr(self.hparams, "language") else None,
             "fp16": self.hparams.fp16 if hasattr(self.hparams, "fp16") else False,
@@ -44,6 +43,9 @@ class WhisperASR(AdvASRBrain):
             "confidence": self.hparams.confidence if hasattr(self.hparams, "confidence") else 0.,
             "correct_first_word": self.hparams.correct_first_word if hasattr(self.hparams, "correct_first_word") else False
         }
+        if options["fp16"]:
+            self.modules.to(torch.float16)
+        dtype = torch.float16 if options["fp16"] else torch.float32
 
         if hasattr(self.hparams, "smoothing") and self.hparams.smoothing:
             wavs = self.hparams.smoothing(wavs, wav_lens)
@@ -63,7 +65,7 @@ class WhisperASR(AdvASRBrain):
             # Decode token terms to words
             with torch.no_grad():
                 result = self.modules.whisper.model.loss(
-                    wavs[0], tokens[0], task="transcribe", **loss_options, **options)
+                    wavs[0].to(dtype), tokens[0], task="transcribe", **loss_options, **options)
                 loss = result["loss"].detach()
                 #logits = result["logits"]
                 #pred_tokens = logits.argmax(dim=-1)
@@ -78,12 +80,15 @@ class WhisperASR(AdvASRBrain):
             #logits = self.modules.whisper.model.transcribe(wavs[0], beam_size=1)
             logits = result["logits"]
             pred_tokens = logits.argmax(dim=-1)
-        return loss, pred_tokens, wav_lens
+        return loss, pred_tokens, stage
 
     def get_tokens(self, predictions):
         #text = predictions[1]["text"]
         #tokens = torch.LongTensor([self.tokenizer.encode(text)])
-        tokens = predictions[1][:, :-1].cpu()
+        if predictions[2] in [sb.Stage.VALID, sb.Stage.TEST]:
+            tokens = predictions[1].cpu()
+        else:
+            tokens = predictions[1][:, :-1].cpu()
         return tokens
 
     def compute_objectives(
@@ -91,7 +96,7 @@ class WhisperASR(AdvASRBrain):
     ):
         """Computes the loss (CTC+NLL) given predictions and targets."""
 
-        loss, pred_tokens, wav_lens = predictions
+        loss, pred_tokens, save_stage = predictions
 
         ids = batch.id
         tokens_eos, tokens_eos_lens = batch.tokens_eos

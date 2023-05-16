@@ -5,7 +5,7 @@
 # ################################
 
 root: !PLACEHOLDER
-model_label: "large"
+model_label: "medium"
 model_name: !ref whisper-<model_label>
 output_folder: !ref <root>/trainings/<model_name>
 wer_file: !ref <output_folder>/wer.txt
@@ -64,10 +64,10 @@ cer_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
    split_tokens: True
 ser_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
    merge_tokens: True
-fp16: true
+fp16: false
 language: null
 
-sigma: 0.0
+sigma: 0.02
 smoothing: !new:robust_speech.adversarial.defenses.smoothing.SpeechNoiseAugmentation
    sigma: !ref <sigma>
    # filter config

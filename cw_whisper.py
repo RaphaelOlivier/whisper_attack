@@ -123,13 +123,19 @@ class ASRCarliniWagnerAttack(ImperceptibleASRAttack):
         batch.sig = masked_adv_input, batch.sig[1]
         predictions = self.asr_brain.compute_forward(batch, rs.Stage.ATTACK)
         loss = self.asr_brain.compute_objectives(
-            predictions, batch, rs.Stage.ATTACK)
-        loss_backward = loss + self.reg_const * torch.norm(local_delta_rescale)
-        # self.asr_brain.module_eval()
-        #val_predictions = self.asr_brain.compute_forward(batch, sb.Stage.VALID)
+            predictions, batch, rs.Stage.ATTACK, reduction="batchmean")
+        loss_backward = loss.mean() + self.reg_const * torch.norm(local_delta_rescale)
         decoded_output = self.asr_brain.get_tokens(predictions)
-        # print(loss_eval.item())
-        # print(decoded_output)
+        # print(decoded_output,batch.tokens)
+        # if teacher forcing prediction is correct, check decoder transcription
+        if (decoded_output[0].view(-1) == batch.tokens_eos[0].cpu().view(-1)).all():
+            self.asr_brain.module_eval()
+            val_predictions = self.asr_brain.compute_forward(
+                batch, sb.Stage.VALID)
+            val_decoded_output = self.asr_brain.get_tokens(val_predictions)
+            decoded_output = val_decoded_output
         if self.train_mode_for_backward:
             self.asr_brain.module_train()
+        if len(loss.size()) == 0:
+            loss = loss.view(1)
         return loss_backward, loss, local_delta, decoded_output, masked_adv_input, local_delta_rescale
