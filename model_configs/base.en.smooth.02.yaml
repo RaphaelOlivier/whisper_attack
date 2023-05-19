@@ -1,0 +1,76 @@
+# ################################
+# Model: whisper
+# Augmentation: SpecAugment
+# Authors: Sung-Lin Yeh 2021
+# ################################
+
+root: !PLACEHOLDER
+model_label: "base.en"
+model_name: !ref whisper-<model_label>
+output_folder: !ref <root>/trainings/<model_name>
+wer_file: !ref <output_folder>/wer.txt
+save_folder: !ref <output_folder>
+train_log: !ref <output_folder>/train_log.txt
+
+pretrained_path: !ref <output_folder>
+
+attack_class: null
+
+sample_rate: 16000
+number_of_epochs: 1
+# Model parameters
+
+# Decoding parameters
+blank_index: 0
+# bos_index: 0
+# eos_index: 0
+
+#
+# Functions and classes
+#
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+   limit: !ref <number_of_epochs>
+
+augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
+   sample_rate: !ref <sample_rate>
+   speeds: [95, 100, 105]
+
+
+whisper: !new:whisper_with_gradients.WhisperWrapper
+   name: !ref <model_label>
+   with_grad: true
+
+# need some kind of model for the checkpoint
+placeholder_model: !new:speechbrain.nnet.linear.Linear
+   input_size: 8
+   n_neurons: 8
+
+modules:
+   whisper: !ref <whisper>
+   placeholder_model: !ref <placeholder_model>
+
+model: !new:torch.nn.ModuleList
+   - [!ref <placeholder_model>]
+
+tokenizer_name: en
+tokenizer_builder: !name:whisper.tokenizer.get_tokenizer
+
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+   save_file: !ref <train_log>
+
+error_rate_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
+
+cer_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
+   split_tokens: True
+ser_computer: !name:speechbrain.utils.metric_stats.ErrorRateStats
+   merge_tokens: True
+fp16: false
+language: null
+
+sigma: 0.02
+smoothing: !new:robust_speech.adversarial.defenses.smoothing.SpeechNoiseAugmentation
+   sigma: !ref <sigma>
+   # filter config
+   filter: null
+
+voting_module: null
