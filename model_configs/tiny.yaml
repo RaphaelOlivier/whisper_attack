@@ -53,7 +53,7 @@ model: !new:torch.nn.ModuleList
    - [!ref <placeholder_model>]
 
 tokenizer_name: multilingual
-tokenizer_builder: !name:whisper.tokenizer.build_tokenizer
+tokenizer_builder: !name:whisper.tokenizer.get_tokenizer
 
 train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
    save_file: !ref <train_log>

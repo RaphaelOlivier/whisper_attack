@@ -15,6 +15,7 @@ from whisper.decoding import DecodingTask, DecodingOptions
 if TYPE_CHECKING:
     from whisper.model import Whisper
 
+
 @dataclass(frozen=True)
 class LossResult:
     audio_features: Tensor
@@ -29,58 +30,69 @@ class LossResult:
     temperature: float = np.nan
     compression_ratio: float = np.nan
 
+
 class LossTask(DecodingTask):
 
-    def __init__(self,model,confidence, correct_first_word,options,*args, **kwargs):
-        super(LossTask,self).__init__(model,options,*args,**kwargs)
-        self.correct_first_word=correct_first_word
-        self.confidence=confidence
+    def __init__(self, model, confidence, correct_first_word, options, *args, **kwargs):
+        super(LossTask, self).__init__(model, options, *args, **kwargs)
+        self.correct_first_word = correct_first_word
+        self.confidence = confidence
 
-    def _loss_from_logits(self,logits,tokens, loss_fct):
-        loss = loss_fct(logits.transpose(1,2),tokens).mean(dim=1)
+    def _loss_from_logits(self, logits, tokens, loss_fct):
+        loss = loss_fct(logits.transpose(1, 2), tokens).mean(dim=1)
         if self.correct_first_word:
-            corrective_first_word_loss = loss_fct(logits[:,0],tokens[:,0])
-            loss=loss + corrective_first_word_loss/logits.size(1)
+            corrective_first_word_loss = loss_fct(logits[:, 0], tokens[:, 0])
+            loss = loss + corrective_first_word_loss/logits.size(1)
         return loss
 
     def _decoder_forward(self, audio_features: Tensor, tokens: Tensor, init_tokens_length: int):
         self.inference.initial_token_length = tokens.shape[-1]
         assert audio_features.shape[0] == tokens.shape[0]
         n_batch = tokens.shape[0]
-        sum_logprobs: Tensor = torch.zeros(n_batch, device=audio_features.device)
+        sum_logprobs: Tensor = torch.zeros(
+            n_batch, device=audio_features.device)
         no_speech_probs = [np.nan] * n_batch
         loss_fct = torch.nn.CrossEntropyLoss(reduction="none")
-        logits = self.inference.logits(tokens[:,:-1], audio_features)
-        loss = self._loss_from_logits(logits[:,(init_tokens_length-1):], tokens[:,init_tokens_length:], loss_fct)
+        logits = self.inference.logits(tokens[:, :-1], audio_features)
+        loss = self._loss_from_logits(
+            logits[:, (init_tokens_length-1):], tokens[:, init_tokens_length:], loss_fct)
         self.inference.cleanup_caching()
-        if self.confidence>0:
-            mask = torch.nn.functional.one_hot(tokens, num_classes=logits.size(-1)) 
-            mask[:,:init_tokens_length]=0
-            logits = logits - self.confidence*mask[:,1:]
-        return loss, logits[:,(init_tokens_length-1):], no_speech_probs, sum_logprobs
+        if self.confidence > 0:
+            mask = torch.nn.functional.one_hot(
+                tokens, num_classes=logits.size(-1))
+            mask[:, :init_tokens_length] = 0
+            logits = logits - self.confidence*mask[:, 1:]
+        return loss, logits[:, (init_tokens_length-1):], no_speech_probs, sum_logprobs
 
     def run(self, mel: Tensor, label: Union[str, torch.Tensor]) -> List[LossResult]:
         self.decoder.reset()
         tokenizer: Tokenizer = self.tokenizer
         n_audio: int = mel.shape[0]
-        audio_features: Tensor = self._get_audio_features(mel)  # encoder forward pass
-        init_tokens: Tensor = torch.tensor([self.initial_tokens]).repeat(n_audio, 1).to(audio_features.device)
+        audio_features: Tensor = self._get_audio_features(
+            mel)  # encoder forward pass
+        init_tokens: Tensor = torch.tensor([self.initial_tokens]).repeat(
+            n_audio, 1).to(audio_features.device)
         init_tokens_length = init_tokens.size(-1)
-        if isinstance(label,str):
+        if isinstance(label, str):
             label = torch.tensor([tokenizer.encode(label)])
-            
-        input_tokens: Tensor = torch.tensor(label).repeat(n_audio, 1).to(audio_features.device)
-        eos_tokens: Tensor = torch.tensor([[tokenizer.tokenizer.eos_token_id]]).repeat(n_audio, 1).to(audio_features.device)
-        tokens = torch.cat([init_tokens,input_tokens,eos_tokens],dim=-1)
+
+        input_tokens: Tensor = torch.tensor(label).repeat(
+            n_audio, 1).to(audio_features.device)
+        eos_tokens: Tensor = torch.tensor([[tokenizer.eot]]).repeat(
+            n_audio, 1).to(audio_features.device)
+        tokens = torch.cat([init_tokens, input_tokens, eos_tokens], dim=-1)
         # detect language if requested, overwriting the language token
-        languages, language_probs = self._detect_language(audio_features, tokens)
+        languages, language_probs = self._detect_language(
+            audio_features, tokens)
 
         # repeat the audio & text tensors by the group size, for beam search or best-of-n sampling
         audio_features = audio_features.repeat_interleave(self.n_group, dim=0)
-        tokens = tokens.repeat_interleave(self.n_group, dim=0).to(audio_features.device)
+        tokens = tokens.repeat_interleave(
+            self.n_group, dim=0).to(audio_features.device)
 
         # call the main sampling loop
-        loss, logits, no_speech_probs, sum_logprobs = self._decoder_forward(audio_features, tokens, init_tokens_length)
+        loss, logits, no_speech_probs, sum_logprobs = self._decoder_forward(
+            audio_features, tokens, init_tokens_length)
         # reshape the tensors to have (n_audio, n_group) as the first two dimensions
         audio_features = audio_features[:: self.n_group]
         no_speech_probs = no_speech_probs[:: self.n_group]
@@ -92,16 +104,19 @@ class LossTask(DecodingTask):
         # get the final candidates for each group, and slice between the first sampled token and EOT
         tokens, sum_logprobs = self.decoder.finalize(tokens, sum_logprobs)
         tokens: List[List[Tensor]] = [
-            [t[self.sample_begin : (t == tokenizer.eot).nonzero()[0, 0]] for t in s] for s in tokens
+            [t[self.sample_begin: (t == tokenizer.eot).nonzero()[0, 0]] for t in s] for s in tokens
         ]
 
         # select the top-ranked sample in each group
         selected = self.sequence_ranker.rank(tokens, sum_logprobs)
-        tokens: List[List[int]] = [t[i].tolist() for i, t in zip(selected, tokens)]
+        tokens: List[List[int]] = [t[i].tolist()
+                                   for i, t in zip(selected, tokens)]
         texts: List[str] = [tokenizer.decode(t).strip() for t in tokens]
 
-        sum_logprobs: List[float] = [lp[i] for i, lp in zip(selected, sum_logprobs)]
-        avg_logprobs: List[float] = [lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
+        sum_logprobs: List[float] = [lp[i]
+                                     for i, lp in zip(selected, sum_logprobs)]
+        avg_logprobs: List[float] = [
+            lp / (len(t) + 1) for t, lp in zip(tokens, sum_logprobs)]
         fields = (texts, languages, tokens, audio_features, logits, loss)
         return [
             LossResult(
@@ -135,7 +150,8 @@ def get_loss_from_mel(model: "Whisper", mel: Tensor, label: Union[str, torch.Ten
     single = mel.ndim == 2
     if single:
         mel = mel.unsqueeze(0)
-    result = LossTask(model, confidence, correct_first_word, options).run(mel,label)
+    result = LossTask(model, confidence, correct_first_word,
+                      options).run(mel, label)
     if single:
         result = result[0]
 
@@ -148,7 +164,8 @@ def get_loss(
     label: Union[str, torch.Tensor],
     *,
     verbose: Optional[bool] = None,
-    temperature: Union[float, Tuple[float, ...]] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
+    temperature: Union[float, Tuple[float, ...]] = (
+        0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
     compression_ratio_threshold: Optional[float] = 2.4,
     logprob_threshold: Optional[float] = -1.0,
     no_speech_threshold: Optional[float] = 0.6,
@@ -188,7 +205,8 @@ def get_loss(
     A dictionary containing the resulting text ("text") and segment-level details ("segments"), and
     the spoken language ("language"), which is detected when `decode_options["language"]` is None.
     """
-    dtype = torch.float16 if decode_options.get("fp16", True) else torch.float32
+    dtype = torch.float16 if decode_options.get(
+        "fp16", True) else torch.float32
     if model.device == torch.device("cpu"):
         if torch.cuda.is_available():
             warnings.warn("Running model on CPU when CUDA is available")
@@ -203,7 +221,8 @@ def get_loss(
     decode_options["language"] = "en"
     language = decode_options["language"]
     task = decode_options.get("task", "transcribe")
-    tokenizer = get_tokenizer(model.is_multilingual, language=language, task=task)
+    tokenizer = get_tokenizer(model.is_multilingual,
+                              language=language, task=task)
 
     seek = 0
     input_stride = exact_div(
@@ -225,7 +244,8 @@ def get_loss(
     def add_segment(
         *, start: float, end: float, text_tokens: torch.Tensor, result: LossResult
     ):
-        text = tokenizer.decode([token for token in text_tokens if token < tokenizer.eot])
+        text = tokenizer.decode(
+            [token for token in text_tokens if token < tokenizer.eot])
         if len(text.strip()) == 0:  # skip empty text output
             return
 
@@ -244,7 +264,8 @@ def get_loss(
             }
         )
         if verbose:
-            print(make_safe(f"[{format_timestamp(start)} --> {format_timestamp(end)}] {text}"))
+            print(
+                make_safe(f"[{format_timestamp(start)} --> {format_timestamp(end)}] {text}"))
 
     # show the progress bar when verbose is False (otherwise the transcribed text will be printed)
     num_frames = mel.shape[-1]
@@ -253,11 +274,13 @@ def get_loss(
     with tqdm.tqdm(total=num_frames, unit='frames', disable=verbose is not False) as pbar:
         while seek < num_frames:
             timestamp_offset = float(seek * HOP_LENGTH / SAMPLE_RATE)
-            segment = pad_or_trim(mel[:, seek:], N_FRAMES).to(model.device).to(dtype)
+            segment = pad_or_trim(mel[:, seek:], N_FRAMES).to(
+                model.device).to(dtype)
             segment_duration = segment.shape[-1] * HOP_LENGTH / SAMPLE_RATE
 
             decode_options["prompt"] = all_tokens[prompt_reset_since:]
-            result: LossResult = get_loss_from_mel(model, segment, label, DecodingOptions(**decode_options))
+            result: LossResult = get_loss_from_mel(
+                model, segment, label, DecodingOptions(**decode_options))
             tokens = torch.tensor(result.tokens)
 
             if no_speech_threshold is not None:
@@ -268,11 +291,14 @@ def get_loss(
                     should_skip = False
 
                 if should_skip:
-                    seek += segment.shape[-1]  # fast-forward to the next segment boundary
+                    # fast-forward to the next segment boundary
+                    seek += segment.shape[-1]
                     continue
 
-            timestamp_tokens: torch.Tensor = tokens.ge(tokenizer.timestamp_begin)
-            consecutive = torch.where(timestamp_tokens[:-1] & timestamp_tokens[1:])[0].add_(1)
+            timestamp_tokens: torch.Tensor = tokens.ge(
+                tokenizer.timestamp_begin)
+            consecutive = torch.where(
+                timestamp_tokens[:-1] & timestamp_tokens[1:])[0].add_(1)
             if len(consecutive) > 0:  # if the output contains two consecutive timestamp tokens
                 last_slice = 0
                 for current_slice in consecutive:
@@ -301,7 +327,8 @@ def get_loss(
                 if len(timestamps) > 0 and timestamps[-1].item() != tokenizer.timestamp_begin:
                     # no consecutive timestamps but it has a timestamp; use the last one.
                     # single timestamp at the end means no speech after the last timestamp.
-                    last_timestamp_position = timestamps[-1].item() - tokenizer.timestamp_begin
+                    last_timestamp_position = timestamps[-1].item(
+                    ) - tokenizer.timestamp_begin
                     duration = last_timestamp_position * time_precision
 
                 add_segment(
@@ -328,13 +355,15 @@ def get_loss(
         language=language
     )
 
+
 def get_loss_single_segment(
     model: "Whisper",
     audio: torch.Tensor,
     label: Union[str, torch.Tensor],
     *,
     verbose: Optional[bool] = None,
-    temperature: Union[float, Tuple[float, ...]] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
+    temperature: Union[float, Tuple[float, ...]] = (
+        0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
     compression_ratio_threshold: Optional[float] = 2.4,
     logprob_threshold: Optional[float] = -1.0,
     no_speech_threshold: Optional[float] = 0.6,
@@ -378,22 +407,22 @@ def get_loss_single_segment(
     dtype = torch.float16 if options.get("fp16", True) else torch.float32
     audio = audio.to(model.device).to(dtype)
     mel = log_mel_spectrogram(audio).to(dtype)
-    mel = pad_or_trim(mel,N_FRAMES)
+    mel = pad_or_trim(mel, N_FRAMES)
     options["language"] = "en"
     language = options["language"]
     task = options.get("task", "transcribe")
     result: LossResult = get_loss_from_mel(
-        model, mel, label, 
-        confidence, 
-        correct_first_word, 
+        model, mel, label,
+        confidence,
+        correct_first_word,
         DecodingOptions(**options)
     )
     loss = result.loss
-    if loss.nelement() >1:
+    if loss.nelement() > 1:
         loss = loss.mean(dim=1)
-    if loss.ndim==0:
+    if loss.ndim == 0:
         loss = loss.unsqueeze(0)
-    logits = result.logits 
+    logits = result.logits
     if logits.ndim == 2:
-        logits=logits.unsqueeze(0)
-    return dict(loss=loss,logits=logits)
+        logits = logits.unsqueeze(0)
+    return dict(loss=loss, logits=logits)

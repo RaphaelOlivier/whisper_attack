@@ -48,7 +48,7 @@ source_brain_hparams_file: !ref model_configs/<model_label>.yaml
 
 # Tokenizer information (compatible with target and source)
 tokenizer_name: multilingual
-tokenizer_builder: !name:whisper.tokenizer.build_tokenizer
+tokenizer_builder: !name:whisper.tokenizer.get_tokenizer
 
    # -------------------------------------------------------------
 

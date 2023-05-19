@@ -29,11 +29,11 @@ source_brain_hparams_file: !ref model_configs/<model_label>.yaml
 
 # Tokenizer information (compatible with target and source)
 tokenizer_name: multilingual
-tokenizer_builder: !name:whisper.tokenizer.build_tokenizer
+tokenizer_builder: !name:whisper.tokenizer.get_tokenizer
 
    # -------------------------------------------------------------
 
-output_folder: !ref <root>/attacks/<attack_name>/<source_model_name>/<seed>
+output_folder: !ref <root>/attacks/<attack_name>/<source_model_name>-<snr>/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>
 log: !ref <output_folder>/log.txt

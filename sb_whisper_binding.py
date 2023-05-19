@@ -49,7 +49,6 @@ class WhisperASR(AdvASRBrain):
 
         if hasattr(self.hparams, "smoothing") and self.hparams.smoothing:
             wavs = self.hparams.smoothing(wavs, wav_lens)
-
         if stage == sb.Stage.TRAIN or stage == rs.Stage.ATTACK:
             if hasattr(self.modules, "env_corrupt"):
                 wavs_noise = self.modules.env_corrupt(wavs, wav_lens)
@@ -118,6 +117,7 @@ class WhisperASR(AdvASRBrain):
             target_words = [wrd.upper().translate(str.maketrans(
                 '', '', string.punctuation)).split(" ") for wrd in batch.wrd]
             #target_words = [wrd.split(" ") for wrd in batch.wrd]
+            #print(predicted_words, target_words)
 
             if adv:
                 if targeted:
@@ -128,8 +128,7 @@ class WhisperASR(AdvASRBrain):
                         ids, predicted_words, target_words
                     )
                     self.adv_ser_metric_target.append(
-                        ids, predicted_words, target_words
-                    )
+                        ids, predicted_words, target_words)
                 else:
                     self.adv_wer_metric.append(
                         ids, predicted_words, target_words)
@@ -138,8 +137,8 @@ class WhisperASR(AdvASRBrain):
             else:
                 self.wer_metric.append(ids, predicted_words, target_words)
                 self.cer_metric.append(ids, predicted_words, target_words)
-            if adv and targeted:
-                print(" ".join(predicted_words[0]))
+            # if adv and targeted:
+                # print(" ".join(predicted_words[0]))
                 #print(" ".join(target_words[0]))
         return loss
 
