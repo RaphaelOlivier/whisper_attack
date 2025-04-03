@@ -34,3 +34,19 @@ python inference.py --model whisper-medium.en --config untargeted-35
 More examples are proposed in the `inference.sh` script.
 
 The dataset is also available [on the Hub](https://huggingface.co/datasets/RaphaelOlivier/whisper_adversarial_examples). Or you can just download the [archives](https://data.mendeley.com/datasets/96dh52hz9r/draft?a=ee30841f-1832-41ec-bdac-bf3e5b67073c).
+
+
+## License
+**robust_speech** is released under the Apache License, version 2.0.
+
+## Cite
+If you are using robust_speeech for your experiments please cite [this paper](https://arxiv.org/abs/2203.16536):
+
+```bibtex
+@article{Olivier2023FW,
+  url = {https://arxiv.org/abs/2210.17316},
+  author = {Olivier, Raphael and Raj, Bhiksha},
+  title = {There is more than one kind of robustness: Fooling Whisper with adversarial examples},
+  journal = {Interspeech},
+  year = {2023},  
+}
